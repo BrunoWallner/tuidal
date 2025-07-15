@@ -2600,6 +2600,7 @@ dependencies = [
 [[package]]
 name = "tidal"
 version = "0.1.0"
+source = "git+https://github.com/BrunoWallner/tidal-rs#b49312abea6ccf4a2a49c5bd948b414c59f9a692"
 dependencies = [
  "base64 0.22.1",
  "bitflags 2.9.1",
