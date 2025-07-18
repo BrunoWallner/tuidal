@@ -2,13 +2,15 @@ use std::{error::Error, sync::mpsc::Receiver};
 
 use tidal::media::{AudioDecoder, Stream};
 
-use crate::audio;
+use super::audio;
 
 pub enum PlayerCtl {
     Play(Stream),
 }
 
-// probably utterly fucking retared but fast :)
+// very unsafe and probably bad, but faster than Arc<Mutex<T>> :)
+// data does not need to be correct and can race
+// I just hope that allocation and deallocation does not get fucked
 pub struct UnsafeDecoder {
     decoder: *mut Option<AudioDecoder>,
 }
@@ -22,9 +24,7 @@ impl UnsafeDecoder {
         unsafe { &mut *self.decoder }
     }
     pub fn set(&mut self, decoder: Option<AudioDecoder>) {
-        unsafe {
-            *self.decoder = decoder;
-        }
+        unsafe { *self.decoder = decoder }
     }
     pub fn share(&self) -> Self {
         Self {

@@ -3,7 +3,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 
-use crate::player::UnsafeDecoder;
+use super::player::UnsafeDecoder;
 
 pub fn init(decoder: UnsafeDecoder) -> Option<Stream> {
     let host = cpal::default_host();
