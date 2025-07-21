@@ -68,8 +68,6 @@ impl Item {
     }
 }
 pub struct Items {
-    pub ui_state: ListState,
-    pub is_dirty: bool,
     item_history: Vec<Vec<Item>>,
     time: usize,
 }
@@ -77,34 +75,33 @@ impl Items {
     pub fn new() -> Self {
         Self {
             item_history: vec![vec![]],
-            is_dirty: false,
+            // is_dirty: false,
             time: 0,
-            ui_state: ListState::default(),
+            // ui_state: ListState::default(),
         }
     }
 
     // Move selection up
-    pub fn select_previous(&mut self) {
-        let i = match self.ui_state.selected() {
-            Some(i) if i > 0 => i - 1,
-            _ => 0,
-        };
-        self.ui_state.select(Some(i));
-    }
+    // pub fn select_previous(&mut self) {
+    //     let i = match self.ui_state.selected() {
+    //         Some(i) if i > 0 => i - 1,
+    //         _ => 0,
+    //     };
+    //     self.ui_state.select(Some(i));
+    // }
 
-    // Move selection down
-    pub fn select_next(&mut self) {
-        let i = match self.ui_state.selected() {
-            Some(i) if i + 1 < self.get().len() => i + 1,
-            Some(i) => i,
-            None => 0,
-        };
-        self.ui_state.select(Some(i));
-    }
+    // // Move selection down
+    // pub fn select_next(&mut self) {
+    //     let i = match self.ui_state.selected() {
+    //         Some(i) if i + 1 < self.get().len() => i + 1,
+    //         Some(i) => i,
+    //         None => 0,
+    //     };
+    //     self.ui_state.select(Some(i));
+    // }
 
     pub fn collapse(&mut self) {
         self.item_history.drain((self.time + 1)..);
-        self.is_dirty = true;
     }
     pub fn get(&self) -> &Vec<Item> {
         &self.item_history[self.time]
@@ -112,26 +109,14 @@ impl Items {
     pub fn push(&mut self, items: Vec<Item>) {
         self.item_history.push(items);
         self.time = self.item_history.len() - 1;
-        self.is_dirty = true;
-        self.apply_selection();
+        // self.apply_selection();
     }
 
-    fn apply_selection(&mut self) {
-        let sel = match self.get().len() {
-            now if now > 0 => match self.ui_state.selected() {
-                Some(prev) => Some(now.min(prev)),
-                None => Some(1),
-            },
-            _ => None,
-        };
-        self.ui_state.select(sel);
-    }
     pub fn back(&mut self) {
         if self.time >= 1 {
             self.time -= 1;
             self.item_history.pop();
-            self.is_dirty = true;
-            self.apply_selection();
+            // self.apply_selection();
         }
     }
 

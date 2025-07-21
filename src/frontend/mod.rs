@@ -1,3 +1,4 @@
+mod elements;
 mod item;
 
 use item::Items;
@@ -5,7 +6,7 @@ use ratatui::{
     DefaultTerminal, Frame,
     crossterm::event,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
+    style::{Color, Style, Stylize},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
 };
 use std::{
@@ -22,30 +23,37 @@ use tidal::{
 
 use crate::{
     backend::{self, PlayerCtl},
-    frontend::item::Item,
+    frontend::{
+        elements::{ItemList, UiElement},
+        item::Item,
+    },
 };
-pub struct Frontend {
+pub struct Frontend<'a> {
     pub session: Session,
     player_tx: Sender<PlayerCtl>,
     terminal: DefaultTerminal,
-    ui: Ui,
+    ui: Ui<'a>,
     running: bool,
 }
 
-pub struct Ui {
-    items: Items,
+pub struct Ui<'a> {
+    // items: Items,
+    item_list: elements::ItemList<'a>,
     input_field: String,
+    selected_element: UiElement,
 }
-impl Ui {
+impl<'a> Ui<'a> {
     pub fn new() -> Self {
         Self {
-            items: Items::new(),
+            // items: Items::new(),
+            item_list: ItemList::new(),
             input_field: String::new(),
+            selected_element: UiElement::ItemList,
         }
     }
 }
 
-impl Frontend {
+impl<'a> Frontend<'a> {
     pub fn new(session: Session) -> Self {
         let terminal = ratatui::init();
         let (player_tx, player_rx) = channel();
@@ -60,35 +68,36 @@ impl Frontend {
         }
     }
 
-    fn draw_ui(ui: &mut Ui, frame: &mut Frame) {
-        let min_width = 60;
+    fn draw_ui(ui: &'a mut Ui<'a>, frame: &mut Frame) {
         let io = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Percentage(100), Constraint::Min(3)])
             .split(frame.area());
 
-        let tabs = if frame.area().width > min_width {
-            Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(100), Constraint::Min(min_width / 2)])
-                .split(io[0])
-        } else {
-            Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-                .split(io[0])
-        };
+        let list_and_info = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(100), Constraint::Length(5)])
+            .split(io[0]);
 
-        let mut list_items = Vec::new();
-        let it = ui.items.get().clone();
-        for i in it.iter() {
-            list_items.push(ListItem::new(i.to_line()))
-        }
+        // let mut list_items = Vec::new();
+        // let it = ui.items.get().clone();
+        // for i in it.iter() {
+        //     list_items.push(ListItem::new(i.to_line()))
+        // }
 
-        let item_list = List::new(list_items)
-            .block(Block::default().borders(Borders::ALL).title("Items"))
-            // .highlight_symbol("> ")
-            .highlight_style(Style::default().fg(Color::Black).bg(Color::White));
+        // let is_selected = ui.selected_element == UiElement::ItemList;
+        // let item_list = ui.item_list.get_widget(is_selected);
+        // let item_list_state = &mut ui.item_list.items.ui_state;
+
+        // let item_list = List::new(list_items)
+        //     .block(
+        //         Block::default()
+        //             .borders(Borders::ALL)
+        //             .title("Items")
+        //             .border_style(border_style)
+        //             .border_type(border_type),
+        //     )
+        //     .highlight_style(Style::default().fg(Color::Black).bg(Color::White));
 
         let right_widget =
             Paragraph::new("Right").block(Block::default().title("Right").borders(Borders::ALL));
@@ -96,58 +105,70 @@ impl Frontend {
         let input_widget = Paragraph::new(ui.input_field.clone())
             .block(Block::default().title("input").borders(Borders::ALL));
 
-        if ui.items.is_dirty {
-            frame.render_widget(Clear, tabs[0]);
-            ui.items.is_dirty = false;
-        }
-        frame.render_stateful_widget(item_list, tabs[0], &mut ui.items.ui_state);
-        frame.render_widget(right_widget, tabs[1]);
+        // if ui.items.is_dirty {
+        //     frame.render_widget(Clear, list_and_info[0]);
+        //     ui.items.is_dirty = false;
+        // }
+        // frame.render_stateful_widget(
+        //     item_list,
+        //     list_and_info[0],
+        //     // &mut ui.item_list.items.ui_state,
+        //     item_list_state,
+        // );
+        ui.item_list.render(frame, list_and_info[0]);
+        frame.render_widget(right_widget, list_and_info[1]);
         frame.render_widget(input_widget, io[1]);
     }
 
     async fn events(&mut self) -> Result<(), io::Error> {
-        let event_availalbe = event::poll(Duration::from_millis(10))?;
-        if !event_availalbe {
-            return Ok(());
-        }
-        let event = event::read()?;
-        match event {
-            event::Event::Key(key_event) => match key_event.code {
-                event::KeyCode::Char(c) => match c {
-                    'q' => self.running = false,
-                    c => self.ui.input_field.push(c),
-                },
-                event::KeyCode::Up => self.ui.items.select_previous(),
-                event::KeyCode::Down => self.ui.items.select_next(),
-                event::KeyCode::Right => match self.ui.items.ui_state.selected() {
-                    Some(i) => {
-                        let item = &self.ui.items.get()[i].clone();
-                        let _ = self.goto(item).await;
-                    }
-                    None => (),
-                },
-                event::KeyCode::Left => self.ui.items.back(),
-                event::KeyCode::Backspace => {
-                    self.ui.input_field.pop();
-                }
-                event::KeyCode::Enter => {
-                    let _ = self.issue_command().await;
-                }
-                _ => (),
-            },
-            _ => (),
-        };
+        // let event_availalbe = event::poll(Duration::from_millis(10))?;
+        // if !event_availalbe {
+        //     return Ok(());
+        // }
+        // let event = event::read()?;
+        // match event {
+        //     event::Event::Key(key_event) => match key_event.code {
+        //         event::KeyCode::Tab => self.ui.selected_element = self.ui.selected_element.next(),
+        //         event::KeyCode::Char(c) => match c {
+        //             'q' => self.running = false,
+        //             c => match self.ui.selected_element {
+        //                 UiElement::InputField => self.ui.input_field.push(c),
+        //                 _ => (),
+        //             },
+        //         },
+        //         event::KeyCode::Up => {
+        //             self.ui.items.select_previous();
+        //         }
+        //         event::KeyCode::Down => self.ui.items.select_next(),
+        //         event::KeyCode::Right => match self.ui.items.ui_state.selected() {
+        //             Some(i) => {
+        //                 let item = &self.ui.items.get()[i].clone();
+        //                 let _ = self.goto(item).await;
+        //             }
+        //             None => (),
+        //         },
+        //         event::KeyCode::Left => self.ui.items.back(),
+        //         event::KeyCode::Backspace => {
+        //             self.ui.input_field.pop();
+        //         }
+        //         event::KeyCode::Enter => {
+        //             let _ = self.issue_command().await;
+        //         }
+        //         _ => (),
+        //     },
+        //     _ => (),
+        // };
         Ok(())
     }
 
     pub async fn listen(&mut self) -> Result<(), Box<dyn Error>> {
-        while self.running {
-            self.events().await?;
-            self.terminal
-                .draw(|frame| Self::draw_ui(&mut self.ui, frame))
-                .unwrap();
-        }
-        ratatui::restore();
+        // while self.running {
+        //     self.events().await?;
+        //     self.terminal
+        //         .draw(|frame| Self::draw_ui(&mut self.ui, frame))
+        //         .unwrap();
+        // }
+        // ratatui::restore();
         Ok(())
     }
 
@@ -179,7 +200,7 @@ impl Frontend {
                 0,
             )
             .await?;
-        self.ui.items.from_search(result);
+        // self.ui.items.from_search(result);
         Ok(())
     }
 
@@ -200,15 +221,15 @@ impl Frontend {
             Item::Track(track) => self.play(track).await?,
             Item::Album(album) => {
                 let tracks = self.session.get_album_tracks(album).await?;
-                let items = tracks.items.into_iter().map(|i| Item::Track(i)).collect();
-                self.ui.items.collapse();
-                self.ui.items.push(items);
+                // let items = tracks.items.into_iter().map(|i| Item::Track(i)).collect();
+                // self.ui.items.collapse();
+                // self.ui.items.push(items);
             }
             Item::Artist(artist) => {
                 let albums = self.session.get_artist_albums(artist).await?;
-                let items = albums.items.into_iter().map(|i| Item::Album(i)).collect();
-                self.ui.items.collapse();
-                self.ui.items.push(items);
+                // let items = albums.items.into_iter().map(|i| Item::Album(i)).collect();
+                // self.ui.items.collapse();
+                // self.ui.items.push(items);
             }
         }
 
